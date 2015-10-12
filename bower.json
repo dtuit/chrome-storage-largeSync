@@ -1,0 +1,22 @@
+{
+  "name": "chromeStoreSyncMore",
+  "version": "0.0.0",
+  "authors": [
+    "dtuit"
+  ],
+  "description": "",
+  "main": "chrome.storage.syncmore.js",
+  "moduleType": [],
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "devDependencies": {
+    "qunit": "~1.19.0"
+  }
+}
