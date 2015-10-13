@@ -1,0 +1,12 @@
+{
+  "name": "TEST-chrome-storage-syncmore.js",
+  "version": "0.0.1",
+  "manifest_version": 2,
+  "description": "unit tests",
+  "permissions": [
+      "storage"
+  ],
+  "chrome_url_overrides": {
+    "newtab": "test.html"
+  }
+}

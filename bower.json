@@ -18,5 +18,8 @@
   ],
   "devDependencies": {
     "qunit": "~1.19.0"
+  },
+  "dependencies": {
+    "lz-string": "~1.4.4"
   }
 }
