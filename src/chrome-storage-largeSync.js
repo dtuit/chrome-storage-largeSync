@@ -1,6 +1,6 @@
-syncMore = (function(){
+largeSync = (function(){
 	if(typeof chrome.storage === 'undefined' || typeof chrome.storage.sync === 'undefined' ){
-		throw Error('[syncMore] - chrome.storage.sync is undefined, check that the "storage" permission included in your manifest.json');
+		throw Error('[largeSync] - chrome.storage.sync is undefined, check that the "storage" permission included in your manifest.json');
 	}
 	var chromeSync = chrome.storage.sync;
 
@@ -29,14 +29,14 @@ syncMore = (function(){
 				ret[ getStorageKey(key, "meta") ] = {
 					key: key, min: 0, max: j,
 					hash : basicHash(str),
-					syncMoreversion : version};
+					largeSyncversion : version};
 			}
 		}
 		return ret;
 	}
 
 	function reconstruct(splitObjects, keys){
-		if(typeof keys == 'undefined'){ 
+		if(typeof keys === 'undefined'){ 
 			keys = extractKeys(splitObjects);
 		}
 		var ret = {};
@@ -46,10 +46,10 @@ syncMore = (function(){
 
 			if(meta  !== 'undefined'){
 				for (var j = 0; j < meta.max; j++) {
-					if(typeof splitObjects[storeKey+ j] === 'undefined'){
-						throw Error("[syncMore] - partial string missing, object cannot be reconstructed.");
+					if(typeof splitObjects[getStorageKey(key, j)] === 'undefined'){
+						throw Error("[largeSync] - partial string missing, object cannot be reconstructed.");
 					}
-					rejoined += splitObjects[storeKey + j];
+					rejoined += splitObjects[getStorageKey(key, j)];
 				}
 				ret[key] = JSON.parse(LZString.decompressFromBase64(rejoined));
 			}
@@ -60,71 +60,98 @@ syncMore = (function(){
 	function getStorageKey(key, postfix){
 		return keyPrefix + "__" + key + "." + postfix;
 	}
-	function getRequestKeys(key){
+	function getRequestKeys(keys){
 		var re = [];
-		for(var i = 0; i < maxBytes/maxBytesPerKey ; i++){
-			re.push(getStorageKey(key, i));
+		for(var i =0; i < getKeys(keys).length; i++){ var key = keys[i];
+
+			for(var j = 0; j < maxBytes/maxBytesPerKey ; j++){
+				re.push(getStorageKey(key, j));
+			}
+			re.push(getStorageKey(key, "meta"));
 		}
-		re.push(getStorageKey(key, "meta"));
 		return re;
 	}
 	function calculateMaxLength(key, maxLength){ 
 		return maxLength - (keyPrefix.length + key.length + 10);
 	}
 	function getKeys(keys){
-		if(typeof keys !== 'undefined'){
+		if(typeof keys !== 'undefined' && keys !== null){
 			if(keys.constructor.name === 'Object'){
 				return Object.keys(keys);
 			}else if (keys.constructor.name === 'Array' || typeof keys === 'string'){
 				return Array.from(keys);
 			}
-		}throw TypeError('[syncMore] - ' + keys + ' must be of type "Object", "Array" or "string"');
+		}throw TypeError('[largeSync] - ' + keys + ' must be of type "Object", "Array" or "string"');
 	}
 	function extractKeys(splitObjects){
 		var ret =  Object.keys(splitObjects)
-			.filter(function(x){
-				return x.indexOf("meta") > -1;
-			})
 			.map(function(x){
-				var match = x.match("\_\_(.*?)\.");
-				if(match != null){
+				var match = x.match("\_\_(.*?)\.meta");
+				if(match !== null){
 					return match[1];
 				}
-				return "";
 			});
 		return ret.filter(Boolean);
 	}	
 	function basicHash(str){
 		var hash = 0;
 	    if (str.length === 0) return hash;
-	    for (i = 0; i < str.length; i++) {
-	        chr = str.charCodeAt(i);
+	    for (var i = 0; i < str.length; i++) {
+	        var chr = str.charCodeAt(i);
 	        hash = ((hash<<5)-hash)+chr;
 	        hash = hash & hash; // Convert to 32bit integer
 	    }
 	    return hash;
 	}
 
-	function get(){
-		var objKeys = utils.getKeys(keys);
-		console.log(objKeys);
-		var reqKeys = objKeys.map(function(x){return utils.genReqKeys(x);}).reduce(function(x,y){return x.concat(y);});
-		console.log(reqKeys);
+	function get(keys, callback){ 
+		var reqKeys = null;
 
+		if(keys !== null){
+			var objKeys = getKeys(keys);
+			reqKeys = getRequestKeys(objKeys);
+		}
 		chromeSync.get(reqKeys, function(items){
-			console.log(items);
-			var x = utils.reconstructFromChunks(items);
+			var x = reconstruct(items);
 			callback(x);
 		});
 	}
-	function set(){
-		var splitItems = utils.splitIntoChunks(items, ns.QUOTA_BYTES_PER_ITEM);
-		console.log(splitItems);
-		chromeSync.set(splitItems, callback);
+	function set(items, callback){
+		if(items === null || typeof items === 'string' || items.constructor.name === 'Array'){
+			// will throw error from "extensions::schemaUtils"
+			chromeSync.set(items, callback);
+		}else{
+			var splitItems = split(items, maxBytesPerKey);
+			
+			var splitKeys = getKeys(splitItems);
+			var reqKeys = getRequestKeys(getKeys(items));
+			var removeKeys = reqKeys.filter(function(x) {return splitKeys.indexOf(x) < 0;});
+			
+			//remove keys that are no longer in use
+			chromeSync.remove(removeKeys);
+
+			chromeSync.set(splitItems, callback);
+		}
+
 	}
-	function remove(){}
-	function getBytesInUse(){}
-	function clear(){
+	function remove(keys, callback){
+		if(keys === null){
+			// will throw error from "extensions::schemaUtils"
+			chromeSync.remove(null, callback);
+		}else{
+			var removeKeys = getRequestKeys(getKeys(keys));
+			chromeSync.remove(removeKeys, callback);
+		}
+	}
+	function getBytesInUse(keys, callback){
+		if(keys === null){
+			chromeSync.getBytesInUse(null, callback);
+		}else{
+			var objectKeys = getRequestKeys(getKeys(keys));
+			chromeSync.getBytesInUse(objectKeys, callback);
+		}
+	}
+	function clear(callback){
 		chromeSync.clear(callback);
 	}
 
@@ -148,16 +175,27 @@ syncMore = (function(){
 		remove : remove,
 		getBytesInUse : getBytesInUse,
 		clear : clear,
+
 		_core : {
 			split : split,
 			reconstruct : reconstruct,
+			utils : {
+				basicHash : basicHash,
+				getKeys : getKeys,
+				extractKeys : extractKeys,
+				getStorageKey : getStorageKey,
+				getRequestKeys : getRequestKeys
+			}
+		},
+		_config : {		
 			getkeyPrefix : getkeyPrefix,
 			setkeyPrefix : setkeyPrefix
 		}
+
 	};
 
-	window.chrome.storage.onChanged.addListenerSyncMore = function(callback){};
-	window.chrome.storage.syncMore2 = api;
+	window.chrome.storage.onChanged.addListenerlargeSync = function(callback){};
+	window.chrome.storage.largeSync = api;
 
 	return api;
 }());
