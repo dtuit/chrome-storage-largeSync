@@ -33,7 +33,7 @@ The API is exposed in two different places `largeSync` and `chrome.storage.large
 
 ####Methods
 
-```
+```javascript
 //get: Gets one or more items from storage.
 largeSync.get(string or array of string or object keys, function callback);
 
