@@ -111,7 +111,7 @@ largeSync = function() {
         keyPrefix = val;
     }
     if ("undefined" == typeof chrome.storage || "undefined" == typeof chrome.storage.sync) throw Error('[largeSync] - chrome.storage.sync is undefined, check that the "storage" permission included in your manifest.json');
-    var chromeSync = chrome.storage.sync, keyPrefix = "LS", maxBytes = chromeSync.QUOTA_BYTES, maxBytesPerKey = chromeSync.QUOTA_BYTES_PER_ITEM, version = "0.0.2", api = {
+    var chromeSync = chrome.storage.sync, keyPrefix = "LS", maxBytes = chromeSync.QUOTA_BYTES, maxBytesPerKey = chromeSync.QUOTA_BYTES_PER_ITEM, version = "0.0.4", api = {
         QUOTA_BYTES: maxBytes,
         QUOTA_BYTES_PER_ITEM: maxBytes,
         QUOTA_BYTES_PER_KEY: maxBytesPerKey,

@@ -14,29 +14,25 @@ largeSync "compresses" and splits objects up between multiple keys in chrome.sto
 
 [`lz-string`](https://github.com/pieroxy/lz-string/) - "compress" strings
 
-###Install
+Install
 ----------
 
 The file to use is `dist/chrome-storage-largeSync.min.js` or `dist/chrome-storage-largeSync.js` 
 
-####bower : 
+**bower** : `bower install chrome-storage-largeSync --save`
 
-`bower install chrome-storage-largeSync --save`
-
-####npm:
-
-`npm install chrome-storage-largesync --save`
+**npm**: `npm install chrome-storage-largesync --save`
 
 for local build clone and run these commands
 `npm install`,`bower install` and `grunt`
 
-###Usage
+Usage
 ----------
 
 largeSync exposes the same api schema as [`chrome.storage`](https://developer.chrome.com/apps/storage#type-StorageArea),
 The API is exposed in two different places `largeSync` and `chrome.storage.largeSync`
 
-####Methods
+###Methods
 
 ```javascript
 //get: Gets one or more items from storage.
@@ -55,7 +51,7 @@ largeSync.remove(string or array of string keys, function callback);
 largeSync.clear(function callback);
 ```
 
-####Example
+###Example
 
 ```javascript
 var testObj = {'a' : [], 'b' : []};
