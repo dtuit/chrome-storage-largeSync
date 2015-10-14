@@ -53,7 +53,7 @@ largeSync = function() {
     }
     function extractKeys(splitObjects) {
         var ret = Object.keys(splitObjects).map(function(x) {
-            var match = x.match("__(.*?).meta");
+            var match = x.match(keyPrefix + "__(.*?).meta");
             return null !== match ? match[1] : void 0;
         });
         return ret.filter(Boolean);
@@ -79,15 +79,18 @@ largeSync = function() {
         });
     }
     function set(items, callback) {
-        if (null === items || "string" == typeof items || "Array" === items.constructor.name) chromeSync.set(items, callback); else {
+        if (null === items || "string" == typeof items || "Array" === items.constructor.name) // will throw error from "extensions::schemaUtils"
+        chromeSync.set(items, callback); else {
             var splitItems = split(items, maxBytesPerKey), splitKeys = getKeys(splitItems), reqKeys = getRequestKeys(getKeys(items)), removeKeys = reqKeys.filter(function(x) {
                 return splitKeys.indexOf(x) < 0;
             });
+            //remove keys that are no longer in use
             chromeSync.remove(removeKeys), chromeSync.set(splitItems, callback);
         }
     }
     function remove(keys, callback) {
-        if (null === keys) chromeSync.remove(null, callback); else {
+        if (null === keys) // will throw error from "extensions::schemaUtils"
+        chromeSync.remove(null, callback); else {
             var removeKeys = getRequestKeys(getKeys(keys));
             chromeSync.remove(removeKeys, callback);
         }
@@ -108,7 +111,7 @@ largeSync = function() {
         keyPrefix = val;
     }
     if ("undefined" == typeof chrome.storage || "undefined" == typeof chrome.storage.sync) throw Error('[largeSync] - chrome.storage.sync is undefined, check that the "storage" permission included in your manifest.json');
-    var chromeSync = chrome.storage.sync, keyPrefix = "SM", maxBytes = chromeSync.QUOTA_BYTES, maxBytesPerKey = chromeSync.QUOTA_BYTES_PER_ITEM, version = "0.0.1", api = {
+    var chromeSync = chrome.storage.sync, keyPrefix = "LS", maxBytes = chromeSync.QUOTA_BYTES, maxBytesPerKey = chromeSync.QUOTA_BYTES_PER_ITEM, version = "0.0.2", api = {
         QUOTA_BYTES: maxBytes,
         QUOTA_BYTES_PER_ITEM: maxBytes,
         QUOTA_BYTES_PER_KEY: maxBytesPerKey,
@@ -141,6 +144,15 @@ largeSync = function() {
     window.chrome.storage.largeSync = api, api;
 }();
 
+// Copyright (c) 2013 Pieroxy <pieroxy@pieroxy.net>
+// This work is free. You can redistribute it and/or modify it
+// under the terms of the WTFPL, Version 2
+// For more information see LICENSE.txt or http://www.wtfpl.net/
+//
+// For more information, the home page:
+// http://pieroxy.net/blog/pages/lz-string/testing.html
+//
+// LZ-based compression algorithm, version 1.4.4
 var LZString = function() {
     function getBaseValue(alphabet, character) {
         if (!baseReverseDic[alphabet]) {
@@ -149,6 +161,7 @@ var LZString = function() {
         }
         return baseReverseDic[alphabet][character];
     }
+    // private property
     var f = String.fromCharCode, keyStrBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=", keyStrUriSafe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$", baseReverseDic = {}, LZString = {
         compressToBase64: function(input) {
             if (null == input) return "";
@@ -156,8 +169,10 @@ var LZString = function() {
                 return keyStrBase64.charAt(a);
             });
             switch (res.length % 4) {
-              default:
-              case 0:
+              // To produce valid Base64
+                default:
+              // When could this happen ?
+                case 0:
                 return res;
 
               case 1:
@@ -185,26 +200,32 @@ var LZString = function() {
                 return compressed.charCodeAt(index) - 32;
             });
         },
+        //compress into uint8array (UCS-2 big endian format)
         compressToUint8Array: function(uncompressed) {
+            // 2 bytes per character
             for (var compressed = LZString.compress(uncompressed), buf = new Uint8Array(2 * compressed.length), i = 0, TotalLen = compressed.length; TotalLen > i; i++) {
                 var current_value = compressed.charCodeAt(i);
                 buf[2 * i] = current_value >>> 8, buf[2 * i + 1] = current_value % 256;
             }
             return buf;
         },
+        //decompress from uint8array (UCS-2 big endian format)
         decompressFromUint8Array: function(compressed) {
             if (null === compressed || void 0 === compressed) return LZString.decompress(compressed);
+            // 2 bytes per character
             for (var buf = new Array(compressed.length / 2), i = 0, TotalLen = buf.length; TotalLen > i; i++) buf[i] = 256 * compressed[2 * i] + compressed[2 * i + 1];
             var result = [];
             return buf.forEach(function(c) {
                 result.push(f(c));
             }), LZString.decompress(result.join(""));
         },
+        //compress into a string that is already URI encoded
         compressToEncodedURIComponent: function(input) {
             return null == input ? "" : LZString._compress(input, 6, function(a) {
                 return keyStrUriSafe.charAt(a);
             });
         },
+        //decompress from an output of compressToEncodedURIComponent
         decompressFromEncodedURIComponent: function(input) {
             return null == input ? "" : "" == input ? null : (input = input.replace(/ /g, "+"), 
             LZString._decompress(input.length, 32, function(index) {
@@ -218,7 +239,8 @@ var LZString = function() {
         },
         _compress: function(uncompressed, bitsPerChar, getCharFromInt) {
             if (null == uncompressed) return "";
-            var i, value, ii, context_dictionary = {}, context_dictionaryToCreate = {}, context_c = "", context_wc = "", context_w = "", context_enlargeIn = 2, context_dictSize = 3, context_numBits = 2, context_data = [], context_data_val = 0, context_data_position = 0;
+            var i, value, ii, context_dictionary = {}, context_dictionaryToCreate = {}, context_c = "", context_wc = "", context_w = "", context_enlargeIn = 2, // Compensate for the first entry which should not count
+            context_dictSize = 3, context_numBits = 2, context_data = [], context_data_val = 0, context_data_position = 0;
             for (ii = 0; ii < uncompressed.length; ii += 1) if (context_c = uncompressed.charAt(ii), 
             Object.prototype.hasOwnProperty.call(context_dictionary, context_c) || (context_dictionary[context_c] = context_dictSize++, 
             context_dictionaryToCreate[context_c] = !0), context_wc = context_w + context_c, 
@@ -244,8 +266,10 @@ var LZString = function() {
                 context_data_position == bitsPerChar - 1 ? (context_data_position = 0, context_data.push(getCharFromInt(context_data_val)), 
                 context_data_val = 0) : context_data_position++, value >>= 1;
                 context_enlargeIn--, 0 == context_enlargeIn && (context_enlargeIn = Math.pow(2, context_numBits), 
-                context_numBits++), context_dictionary[context_wc] = context_dictSize++, context_w = String(context_c);
+                context_numBits++), // Add wc to the dictionary.
+                context_dictionary[context_wc] = context_dictSize++, context_w = String(context_c);
             }
+            // Output the code for w.
             if ("" !== context_w) {
                 if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
                     if (context_w.charCodeAt(0) < 256) {
@@ -273,6 +297,7 @@ var LZString = function() {
             for (value = 2, i = 0; context_numBits > i; i++) context_data_val = context_data_val << 1 | 1 & value, 
             context_data_position == bitsPerChar - 1 ? (context_data_position = 0, context_data.push(getCharFromInt(context_data_val)), 
             context_data_val = 0) : context_data_position++, value >>= 1;
+            // Flush the last char
             for (;;) {
                 if (context_data_val <<= 1, context_data_position == bitsPerChar - 1) {
                     context_data.push(getCharFromInt(context_data_val));
@@ -342,8 +367,9 @@ var LZString = function() {
                     if (c !== dictSize) return null;
                     entry = w + w.charAt(0);
                 }
-                result.push(entry), dictionary[dictSize++] = w + entry.charAt(0), enlargeIn--, w = entry, 
-                0 == enlargeIn && (enlargeIn = Math.pow(2, numBits), numBits++);
+                result.push(entry), // Add w+entry[0] to the dictionary.
+                dictionary[dictSize++] = w + entry.charAt(0), enlargeIn--, w = entry, 0 == enlargeIn && (enlargeIn = Math.pow(2, numBits), 
+                numBits++);
             }
         }
     };

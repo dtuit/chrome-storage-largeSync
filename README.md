@@ -1,5 +1,6 @@
 largeSync - chrome-storage-largeSync
 ===============================
+
 largeSync wraps  [`chrome.storage.sync`](https://developer.chrome.com/extensions/storage). it makes it easy to store objects larger than is allowed by default. Useful for Google Chrome extensions and apps.
 
 chrome.storage.sync enforces two byte limits.
@@ -10,24 +11,28 @@ chrome.storage.sync enforces two byte limits.
 largeSync "compresses" and splits objects up between multiple keys in chrome.storage.sync, this makes `QUOTA_BYTES` the only relevant space limitation.
 
 ####Dependencies
+
 [`lz-string`](https://github.com/pieroxy/lz-string/) - "compress" strings
 
 ###Install
 ----------
+
 The file to use is `dist/chrome-storage-largeSync.min.js` or `dist/chrome-storage-largeSync.js` 
 
 ####bower : 
-`TODO bower install chrome-storage-largeSync --save`
+
+`bower install chrome-storage-largeSync --save`
 
 ####npm:
-`TODO`
 
-for local build run these commands
-`npm install`
-`bower install`
-`grunt install`
+`npm install chrome-storage-largesync --save`
+
+for local build clone and run these commands
+`npm install`,`bower install` and `grunt`
 
 ###Usage
+----------
+
 largeSync exposes the same api schema as [`chrome.storage`](https://developer.chrome.com/apps/storage#type-StorageArea),
 The API is exposed in two different places `largeSync` and `chrome.storage.largeSync`
 
@@ -51,6 +56,7 @@ largeSync.clear(function callback);
 ```
 
 ####Example
+
 ```javascript
 var testObj = {'a' : [], 'b' : []};
 for (var i = 0; i < 5000; i++) {
@@ -71,6 +77,7 @@ chrome.storage.largeSync.get(["a", "b"], function(items){
 ```
 
 ###Tests
+
 load `test` folder as an unpacked extension. it will override the new-tab page.
 
 ----------

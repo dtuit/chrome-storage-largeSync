@@ -1,14 +1,23 @@
 {
-  "name": "chrome-Storage-largeSync",
-  "version": "0.0.0",
+  "name": "chrome-storage-largeSync",
+  "version": "0.0.1",
   "authors": [
     "dtuit"
   ],
-  "description": "",
-  "main": "chrome.storage.largeSync.js",
+  "keywords": [
+    "chrome",
+    "extension",
+    "storage",
+    "sync",
+    "google",
+    "app",
+    "largeSync"
+  ],
+  "description": "Wraps chrome.storage.sync, facilitates storage of objects larger than allowed by QUOTA_BYTES_PER_ITEM",
+  "homepage": "https://github.com/dtuit/chrome-storage-largeSync",
+  "main": "dist/chrome.storage.largeSync.min.js",
   "moduleType": [],
   "license": "MIT",
-  "homepage": "",
   "ignore": [
     "**/.*",
     "node_modules",

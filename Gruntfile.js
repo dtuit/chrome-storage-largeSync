@@ -8,24 +8,38 @@ module.exports = function(grunt) {
       uglify: {
         my_target_min: {
           files: {
-            'dist/<%= pkg.name %>.min.js': 
+            'dist/<%= config.name %>.min.js': 
               [
-                'src/<%= pkg.name %>.js',
+                'src/<%= config.name %>.js',
                 'bower_components/lz-string/libs/lz-string.js'
               ]
           }
         },
         my_target_not_min: {
           options : {
+            preserveComments : 'all',
             mangle: false,
             beautify: true
           },
           files: {
-            'dist/<%= pkg.name %>.js':
+            'dist/<%= config.name %>.js':
               [
-                'src/<%= pkg.name %>.js',
+                'src/<%= config.name %>.js',
                 'bower_components/lz-string/libs/lz-string.js'
               ]
+          }
+        }
+      },
+      'string-replace': {
+        version: {
+          files: {
+            'dist/' : 'dist/**'
+          },
+          options: {
+            replacements: [{
+              pattern: /{{ VERSION }}/g,
+              replacement: '<%= pkg.version %>'
+            }]
           }
         }
       },
@@ -44,12 +58,12 @@ module.exports = function(grunt) {
       }
   });
 
-
+  grunt.loadNpmTasks('grunt-string-replace');
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-watch');
 
-  grunt.registerTask('default', ['uglify', 'copy']);
+  grunt.registerTask('default', ['uglify','string-replace', 'copy']);
   grunt.registerTask('copyfiles', ['copy']);
 
 };

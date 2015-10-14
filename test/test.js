@@ -82,7 +82,7 @@ QUnit.test("objects are reconstructed correctly", function( assert){
 				reconstructed.a
 		)));
 	
-	assert.ok( splitObj["SM__a.meta"].hash == hashAfter, "the hash of the object is consistent before and after reconstrution");
+	assert.ok( splitObj["LS__a.meta"].hash == hashAfter, "the hash of the object is consistent before and after reconstrution");
 	assert.deepEqual(testObj, reconstructed, "object is serilized, split, then reconstructed to return the orignal object");
 });
 
