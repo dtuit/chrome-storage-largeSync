@@ -17,8 +17,6 @@ largeSync "compresses" and splits objects up between multiple keys in chrome.sto
 Install
 ----------
 
-The file to use is `dist/chrome-storage-largeSync.min.js` or `dist/chrome-storage-largeSync.js` 
-
 **bower** : `bower install chrome-storage-largeSync --save`
 
 **npm**: `npm install chrome-storage-largesync --save`
@@ -28,6 +26,8 @@ for local build clone and run these commands
 
 Usage
 ----------
+
+The file to use is `dist/chrome-storage-largeSync.min.js` or `dist/chrome-storage-largeSync.js` 
 
 largeSync exposes the same api schema as [`chrome.storage`](https://developer.chrome.com/apps/storage#type-StorageArea),
 The API is exposed in two different places `largeSync` and `chrome.storage.largeSync`

@@ -1,4 +1,11 @@
 largeSync = function() {
+    /**For each object key in @param obj, JSON stringify then LZString base64 then split into
+   * parts of @param maxLength, add a metadata object describing how to reverse the process.
+   * 
+   * @param  {Object} obj, the object to split
+   * @param  {number} maxLength(optional), the length in bytes of each part
+   * @return {Object} object containing all chunks and metadata ready for storage.
+   */
     function split(obj, maxLength) {
         "undefined" == typeof maxLength && (maxLength = maxBytesPerKey);
         for (var keys = getKeys(obj), ret = {}, i = 0; i < keys.length; i++) {
@@ -17,6 +24,12 @@ largeSync = function() {
         }
         return ret;
     }
+    /**For each metadata object in @param splitObjects, attempt to reconstruct the object from its parts
+   * 
+   * @param  {Object} splitObjects, the return value of split(obj, maxLength)
+   * @param  {Array} keys(optional), the keys of objects you want to reconstruct
+   * @return {Object} the reconstructed objects
+   */
     function reconstruct(splitObjects, keys) {
         "undefined" == typeof keys && (keys = extractKeys(splitObjects));
         for (var ret = {}, i = 0; i < keys.length; i++) {
@@ -34,16 +47,22 @@ largeSync = function() {
     function getStorageKey(key, postfix) {
         return keyPrefix + "__" + key + "." + postfix;
     }
-    function getRequestKeys(keys) {
+    // There is a maximum of maxBytes/maxBytesPerKey keys of storage available.
+    // therefore when using largeSync.get(objKeys) we requsest all posible parts keys for each obj key
+    function getRequestKeys(keys, num) {
+        "undefined" == typeof num && (num = maxBytes / maxBytesPerKey);
         for (var re = [], i = 0; i < getKeys(keys).length; i++) {
-            for (var key = keys[i], j = 0; maxBytes / maxBytesPerKey > j; j++) re.push(getStorageKey(key, j));
+            for (var key = keys[i], j = 0; num > j; j++) re.push(getStorageKey(key, j));
             re.push(getStorageKey(key, "meta"));
         }
         return re;
     }
+    //this factors in the length of the key towards how much storage can be used.
     function calculateMaxLength(key, maxLength) {
         return maxLength - (keyPrefix.length + key.length + 10);
     }
+    //given string or array of string or object keys,
+    //returns array of keys.
     function getKeys(keys) {
         if ("undefined" != typeof keys && null !== keys) {
             if ("Object" === keys.constructor.name) return Object.keys(keys);
@@ -51,12 +70,17 @@ largeSync = function() {
         }
         throw TypeError("[largeSync] - " + keys + ' must be of type "Object", "Array" or "string"');
     }
+    //For any meta data objects int the splitObjects get its object key
     function extractKeys(splitObjects) {
         var ret = Object.keys(splitObjects).map(function(x) {
             var match = x.match(keyPrefix + "__(.*?).meta");
             return null !== match ? match[1] : void 0;
         });
         return ret.filter(Boolean);
+    }
+    function matchesPrefix(key) {
+        var re = new RegExp("^" + keyPrefix), match = key.match(re);
+        return null !== match ? !0 : !1;
     }
     function basicHash(str) {
         var hash = 0;
@@ -67,6 +91,10 @@ largeSync = function() {
         }
         return hash;
     }
+    /**Gets one or more items from storage.
+   * @param  {string or array of string or object } keys
+   * @param  {Function} callback
+   */
     function get(keys, callback) {
         var reqKeys = null;
         if (null !== keys) {
@@ -78,16 +106,33 @@ largeSync = function() {
             callback(x);
         });
     }
+    /**Sets multiple items.
+   * @param {object} items
+   * @param {Function} callback
+   */
     function set(items, callback) {
         if (null === items || "string" == typeof items || "Array" === items.constructor.name) // will throw error from "extensions::schemaUtils"
         chromeSync.set(items, callback); else {
-            var splitItems = split(items, maxBytesPerKey), splitKeys = getKeys(splitItems), reqKeys = getRequestKeys(getKeys(items)), removeKeys = reqKeys.filter(function(x) {
+            var splitItems = split(items, maxBytesPerKey), splitKeys = getKeys(splitItems), reqKeys = getRequestKeys(getKeys(items));
+            reqKeys.filter(function(x) {
                 return splitKeys.indexOf(x) < 0;
             });
-            //remove keys that are no longer in use
-            chromeSync.remove(removeKeys), chromeSync.set(splitItems, callback);
+            // //remove partials keys that are no longer in use
+            // chromeSync.remove(removeKeys, function(){
+            //   onChangedEnabled = true;
+            //   //set the values;
+            //   chromeSync.set(splitItems, callback);
+            // }); 
+            // if(!operationStatus.isBusy){
+            operationStatus.isBusy = !0, chromeSync.set(splitItems, function() {
+                onChangedEnabled = !1, callback(), onChangedEnabled = !0;
+            });
         }
     }
+    /**Removes one or more items from storage.
+   * @param  {string or array of string } keys
+   * @param  {Function} callback
+   */
     function remove(keys, callback) {
         if (null === keys) // will throw error from "extensions::schemaUtils"
         chromeSync.remove(null, callback); else {
@@ -95,12 +140,20 @@ largeSync = function() {
             chromeSync.remove(removeKeys, callback);
         }
     }
+    /** Gets the amount of space (in bytes) being used by one or more items.
+   * @param  {(string or array of string} keys
+   * @param  {Function} callback
+   */
     function getBytesInUse(keys, callback) {
         if (null === keys) chromeSync.getBytesInUse(null, callback); else {
             var objectKeys = getRequestKeys(getKeys(keys));
             chromeSync.getBytesInUse(objectKeys, callback);
         }
     }
+    /**Removes all items from storage. (warn: will also delete items not belonging to largeSync)
+   * @param  {Function}
+   * @return {[type]}
+   */
     function clear(callback) {
         chromeSync.clear(callback);
     }
@@ -110,8 +163,49 @@ largeSync = function() {
     function setkeyPrefix(val) {
         keyPrefix = val;
     }
+    /**Usage: chrome.storage.onChanged.addListener(largeSyncOnChangedCallback(function(changes, area){}))
+   * @param  {Function}
+   * @return {[type]}
+   */
+    function largeSyncOnChangedCallback(callback) {
+        function separateOldAndNewValues(changes) {
+            var oldValues = {}, newValues = {};
+            for (var key in changes) if (matchesPrefix(key)) {
+                var current = changes[key];
+                "undefined" != typeof current.oldValue && (oldValues[key] = current.oldValue), "undefined" != typeof current.newValue && (newValues[key] = current.newValue);
+            }
+            return {
+                oldValues: oldValues,
+                newValues: newValues
+            };
+        }
+        function getOldValue(oldPartials) {
+            var oldValue = {};
+            try {
+                oldValue = reconstruct(oldPartials);
+            } catch (err) {
+                console.log(err);
+            }
+            return oldValue;
+        }
+        var ret = function(changes, areaName) {
+            if (console.log("listenerCalled"), onChangedEnabled === !0 && "sync" === areaName) {
+                var keys = extractKeys(changes), x = (getRequestKeys(keys), separateOldAndNewValues(changes)), y = getOldValue(x.oldValues), z = getOldValue(x.newValues);
+                console.log("changes", changes), console.log("partials", x), console.log("oldValues", y), 
+                console.log("newValues", z), callback(changes, areaName);
+            }
+        };
+        return ret;
+    }
+    //check dependencys
     if ("undefined" == typeof chrome.storage || "undefined" == typeof chrome.storage.sync) throw Error('[largeSync] - chrome.storage.sync is undefined, check that the "storage" permission included in your manifest.json');
-    var chromeSync = chrome.storage.sync, keyPrefix = "LS", maxBytes = chromeSync.QUOTA_BYTES, maxBytesPerKey = chromeSync.QUOTA_BYTES_PER_ITEM, version = "0.0.4", api = {
+    var chromeSync = chrome.storage.sync, keyPrefix = "LS", maxBytes = chromeSync.QUOTA_BYTES, maxBytesPerKey = chromeSync.QUOTA_BYTES_PER_ITEM, version = "0.0.4", onChangedEnabled = !0, // prevent the largeSyncOnChangedCallback execution.
+    operationStatus = {
+        isBusy: !1,
+        done: function() {
+            this.isBusy = !1;
+        }
+    }, api = {
         QUOTA_BYTES: maxBytes,
         QUOTA_BYTES_PER_ITEM: maxBytes,
         QUOTA_BYTES_PER_KEY: maxBytesPerKey,
@@ -132,16 +226,21 @@ largeSync = function() {
                 getKeys: getKeys,
                 extractKeys: extractKeys,
                 getStorageKey: getStorageKey,
-                getRequestKeys: getRequestKeys
+                getRequestKeys: getRequestKeys,
+                matchesPrefix: matchesPrefix,
+                getBusyStatus: function() {
+                    return operationStatus;
+                }
             }
         },
         _config: {
             getkeyPrefix: getkeyPrefix,
             setkeyPrefix: setkeyPrefix
-        }
+        },
+        onChangedCallback: largeSyncOnChangedCallback
     };
-    return window.chrome.storage.onChanged.addListenerlargeSync = function(callback) {}, 
-    window.chrome.storage.largeSync = api, api;
+    // window.chrome.storage.onChanged.addListenerlargeSync = function(callback){};
+    return window.chrome.storage.largeSync = api, api;
 }();
 
 // Copyright (c) 2013 Pieroxy <pieroxy@pieroxy.net>

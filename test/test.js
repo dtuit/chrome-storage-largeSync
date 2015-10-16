@@ -89,6 +89,8 @@ QUnit.test("objects are reconstructed correctly", function( assert){
 
 QUnit.module('largeSync.IntegrationTests',{
 	setup : function(){
+		chrome.storage.sync.clear();
+
 		for (var i = 0; i < 1000; i++) {
 			testObj.a.push({text : 'sometext_a_'+i});
 			testObj.b.push({text : 'sometext_b_'+i});
@@ -96,6 +98,7 @@ QUnit.module('largeSync.IntegrationTests',{
 	},
 	teardown: function(){
 		chrome.storage.sync.clear();
+
 		testObj = {'a' : [], 'b' : []};
 	}
 });
@@ -108,14 +111,16 @@ QUnit.test('Set', function( assert ){
 		testObj.b.push({text : 'sometext_b_'+i});
 	}
 
-	largeSync.set(testObj, function(x){});
+	largeSync.set(testObj, function(x){
+		var splitObj = largeSync._core.split(testObj);
 
-	var splitObj = largeSync._core.split(testObj);
-
-	chrome.storage.sync.get(splitObj, function(items){
-		assert.deepEqual(splitObj, items, "object in storage area is equal to its split object form");
-		done();
+		chrome.storage.sync.get(splitObj, function(items){
+			assert.deepEqual(splitObj, items, "object in storage area is equal to its split object form");
+			done();
+		});
 	});
+
+	
 });
 QUnit.test('Set - changes are persisted and chunks that are out of use are removed', function( assert ){
 	var done = assert.async();
@@ -130,9 +135,13 @@ QUnit.test('Set - changes are persisted and chunks that are out of use are remov
 		// Reduce the size of the testObject and rewrite it to storage.
 		var testObj2 = {'a' : [], 'b' : []};
 		var splitObj2 = largeSync._core.split(testObj2);
-		
+		// var operation = largeSync._core.utils.getBusyStatus();
+		// operation.done();
+		// console.log(operation, operation.isBusy);
+
 		largeSync.set(testObj2, function(){
-			
+			// var operation = largeSync._core.utils.getBusyStatus();
+			// console.log(operation, operation.isBusy);
 			//get all items in storage
 			chrome.storage.sync.get(null, function(items){
 
