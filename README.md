@@ -10,7 +10,7 @@ chrome.storage.sync enforces two byte limits.
   
 largeSync "compresses" and splits objects up between multiple keys in chrome.storage.sync, this makes `QUOTA_BYTES` the only relevant space limitation.
 
-####Dependencies
+#### Dependencies
 
 [`lz-string`](https://github.com/pieroxy/lz-string/) - "compress" strings
 
@@ -32,7 +32,7 @@ Usage
 largeSync exposes the same api schema as [`chrome.storage`](https://developer.chrome.com/apps/storage#type-StorageArea),
 The API is exposed in two different places `largeSync` and `chrome.storage.largeSync`
 
-###Methods
+### Methods
 
 ```javascript
 //get: Gets one or more items from storage.
@@ -51,7 +51,7 @@ largeSync.remove(string or array of string keys, function callback);
 largeSync.clear(function callback);
 ```
 
-###Example
+### Example
 
 ```javascript
 var testObj = {'a' : [], 'b' : []};
@@ -72,7 +72,7 @@ chrome.storage.largeSync.get(["a", "b"], function(items){
 });
 ```
 
-###Tests
+### Tests
 
 load `test` folder as an unpacked extension. it will override the new-tab page.
 
